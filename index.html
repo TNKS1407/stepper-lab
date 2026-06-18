@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stepper Physics Lab v4</title>
+<style>
+  :root {
+    --bg: #070b12;
+    --panel: #0f1724;
+    --panel-2: #121c2c;
+    --ink: #e9eff8;
+    --muted: #8d9bb0;
+    --line: #243149;
+    --line-soft: #1b2638;
+    --soft: #15202f;
+    --accent: #ffb02e;
+    --accent-ink: #1a1205;
+    --blue: #4da3ff;
+    --red: #ff5d52;
+    --green: #3ad584;
+    --purple: #b08cff;
+    --danger: #ff4d4f;
+    --shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "IBM Plex Sans JP", ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 60rem 26rem at 18% -6%, rgba(255, 176, 46, 0.10), transparent 60%),
+      radial-gradient(ellipse 50rem 30rem at 100% 0%, rgba(77, 163, 255, 0.07), transparent 65%),
+      repeating-linear-gradient(0deg, rgba(141, 155, 176, 0.045) 0 1px, transparent 1px 44px),
+      repeating-linear-gradient(90deg, rgba(141, 155, 176, 0.045) 0 1px, transparent 1px 44px),
+      var(--bg);
+  }
+  header { max-width: 1480px; margin: 0 auto; padding: 30px 20px 12px; }
+  .kicker {
+    margin: 0 0 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .kicker::before { content: "■ "; font-size: 8px; vertical-align: 2px; }
+  h1 {
+    margin: 0;
+    font-size: clamp(28px, 4vw, 44px);
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+  h1 .ver {
+    font-family: var(--mono);
+    font-size: 0.42em;
+    font-weight: 600;
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent), transparent 55%);
+    background: color-mix(in srgb, var(--accent), transparent 90%);
+    border-radius: 8px;
+    padding: 3px 9px;
+    vertical-align: 6px;
+    margin-left: 10px;
+    letter-spacing: 0.08em;
+  }
+  .subtitle { margin: 10px 0 0; color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 72ch; }
+  .warning { max-width: 1480px; margin: 14px auto 16px; padding: 0 20px; }
+  .warning-inner {
+    border: 1px solid rgba(255, 176, 46, 0.35);
+    border-left: 4px solid var(--accent);
+    background: rgba(255, 176, 46, 0.07);
+    color: #f3d9a6;
+    border-radius: 12px;
+    padding: 12px 16px;
+    line-height: 1.6;
+    font-size: 13.5px;
+  }
+  .warning-inner b { color: var(--accent); }
+  main { max-width: 1480px; margin: 0 auto 48px; padding: 0 20px 24px; display: grid; grid-template-columns: minmax(760px, 1fr) 380px; gap: 18px; align-items: start; }
+  .card {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+  }
+  .canvas-wrap { padding: 12px; }
+  canvas { display: block; width: 100%; height: auto; border-radius: 12px; background: #0b121c; border: 1px solid var(--line-soft); }
+  .controls { padding: 18px; position: sticky; top: 14px; }
+  .controls h2 {
+    margin: 0 0 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .controls h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { margin: 0 0 12px; }
+  .field label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  .field label b { color: var(--accent); font-family: var(--mono); font-weight: 600; font-size: 13px; text-align: right; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  input[type="number"], select {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 8px 9px;
+    color: var(--ink);
+    background: #0c1320;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+  input[type="number"]:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  button {
+    border: 1px solid var(--line);
+    background: var(--soft);
+    color: var(--ink);
+    padding: 10px 10px;
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.05s;
+  }
+  button:hover { border-color: #3a4c6d; background: #1a2638; }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 0 22px rgba(255, 176, 46, 0.25); }
+  button.primary:hover { background: #ffc057; border-color: #ffc057; }
+  .button-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 14px; }
+  details { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+  summary { cursor: pointer; color: var(--ink); font-weight: 600; font-size: 14px; }
+  summary:hover { color: var(--accent); }
+  .mini { color: var(--muted); font-size: 13px; line-height: 1.65; }
+  .mini b { color: var(--ink); }
+  .equations {
+    font-family: var(--mono);
+    white-space: pre-wrap;
+    background: #060a11;
+    color: #b9c9e2;
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    padding: 13px;
+    line-height: 1.5;
+    font-size: 12.5px;
+    overflow-x: auto;
+  }
+  .badge {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 5px 11px;
+    background: var(--soft);
+    border: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin: 10px 6px 0 0;
+  }
+  @media (max-width: 1120px) { main { grid-template-columns: 1fr; } .controls { position: static; } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<header>
+  <p class="kicker">2-phase hybrid stepper &middot; low-order physics model</p>
+  <h1>Stepper Physics Lab <span class="ver">v4</span></h1>
+  <p class="subtitle">STEPパルスで指令位置だけが離散的に進み、ロータは電流・トルク・慣性・減衰で連続的に追従するモデル。50歯ロータ、電気角/機械角変換、1.8° full-stepを明示します。</p>
+</header>
+<section class="warning"><div class="warning-inner"><b>注意:</b> 本ツールは教育・検討用の低次元モデルです。FEM磁界解析、磁気飽和、実固定子歯形、ドライバIC固有PWMまでは再現していません。最終設計はメーカー資料・実測・実機評価で確認してください。</div></section>
+<main>
+  <section class="card canvas-wrap">
+    <canvas id="lab" width="1392" height="1412" aria-label="Stepper Physics Lab visualization"></canvas>
+  </section>
+  <aside class="card controls">
+    <h2>実験条件</h2>
+    <div class="field">
+      <label>プリセット <b id="presetName">低速・安定</b></label>
+      <select id="preset">
+        <option value="stable">低速・安定</option>
+        <option value="stepResponse">1 full-step応答を観察</option>
+        <option value="voltageLimited">高速で電圧余裕不足</option>
+        <option value="aggressiveAccel">加速が急すぎる</option>
+        <option value="heavyLoad">負荷トルクが大きすぎる</option>
+        <option value="slowDecay">slow decayで電流が残る</option>
+        <option value="voltageMode">電圧モードPWMの高速限界</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="field"><label>駆動モード <b id="modeLabel"></b></label><select id="driveMode"><option value="micro">Microstep</option><option value="half">Half-step</option><option value="full">2相励磁 / Full-step</option><option value="wave">1相励磁 / Wave</option></select></div>
+      <div class="field"><label>ドライバ近似 <b id="driverLabel"></b></label><select id="driverMode"><option value="current">電流制御・電圧制限あり</option><option value="ideal">理想電流源</option><option value="fast">fast decay寄り</option><option value="mixed">mixed decay近似</option><option value="slow">slow decay近似</option><option value="voltage">電圧モードPWM近似</option></select></div>
+    </div>
+    <div class="field"><label>マイクロステップ分割（Microstepモード時）<b id="microText"></b></label><select id="microsteps"><option value="2">1/2（half相当）</option><option value="4">1/4 ステップ</option><option value="8">1/8 ステップ</option><option value="16">1/16</option><option value="32" selected>1/32</option><option value="64">1/64</option><option value="128">1/128</option><option value="256">1/256</option></select></div>
+    <div class="field"><label>50歯パネル表示 <b id="zoomText"></b></label><select id="rotorZoom"><option value="full" selected>全体（円形）</option><option value="zoom">拡大（磁極と歯の整列）</option></select></div>
+    <div class="button-row">
+      <button class="primary" id="play">連続再生</button>
+      <button id="reset">リセット</button>
+      <button id="stepCommand">1 STEP入力</button>
+      <button id="stepFull">1 full-step</button>
+      <button id="reverse">逆転</button>
+      <button id="settle">応答だけ再生</button>
+    </div>
+    <p class="mini"><b>1 STEP入力</b> は現在の駆動モードの最小指令単位です。Microstepなら1マイクロステップ、Half-stepなら0.9°、Full/Waveなら1.8°です。<b>1 full-step</b> は常に機械角1.8°ぶん指令を進めます。</p>
+    <div class="field"><label>観察速度倍率（スロー再生）<b id="timeScaleText"></b></label><input id="timeScale" type="range" min="0.03" max="2.0" step="0.01" value="0.35" /></div>
+    <p class="mini">観察速度倍率は<b>スロー再生の係数</b>です。1.0で実時間、0.35なら約1/3の遅さでゆっくり見られます（実際のモータ速度は変わりません）。</p>
+    <div class="field"><label>目標速度 [full-step/s] <b id="ppsText"></b></label><input id="pps" type="range" min="0" max="800" step="0.5" value="0.8" /></div>
+    <div class="field"><label>加速度 [full-step/s²] <b id="accelText"></b></label><input id="accel" type="range" min="1" max="4000" step="1" value="30" /></div>
+    <div class="field"><label>1ステップ応答の観察時間 [s] <b id="responseText"></b></label><input id="responseTime" type="range" min="0.05" max="1.50" step="0.05" value="0.70" /></div>
+    <div class="row"><div class="field"><label>掃引時間（横軸）<b id="sweepText"></b></label><select id="sweep"><option value="0.05">0.05 秒</option><option value="0.1">0.1 秒</option><option value="0.5">0.5 秒</option><option value="1">1 秒</option><option value="2">2 秒</option><option value="4" selected>4 秒</option><option value="8">8 秒</option><option value="16">16 秒</option><option value="30">30 秒</option></select></div><div class="field"><label>波形の流し方 <b id="rollText"></b></label><select id="rollMode"><option value="roll" selected>ロール（流れる）</option><option value="accum">蓄積（たまる）</option></select></div></div>
+    <div class="row"><div class="field"><label>電流レンジ（縦）<b id="vGainText"></b></label><select id="vGain"><option value="0.5">広め（×0.5）</option><option value="1" selected>標準（×1）</option><option value="2">拡大 ×2</option><option value="4">拡大 ×4</option></select></div><div class="field"><label>トルクレンジ <b id="tRangeText"></b></label><select id="tRange"><option value="auto" selected>自動</option><option value="0.05">0.05 N·m</option><option value="0.1">0.1 N·m</option><option value="0.2">0.2 N·m</option><option value="0.5">0.5 N·m</option><option value="1">1.0 N·m</option></select></div></div>
+    <details open><summary>電気パラメータ</summary><div class="row">
+      <div class="field"><label>電源電圧 VM [V] <b id="vbusText"></b></label><input id="vbus" type="number" value="24" step="1" /></div>
+      <div class="field"><label>相電流上限 [A] <b id="imaxText"></b></label><input id="imax" type="number" value="1.6" step="0.1" /></div>
+      <div class="field"><label>巻線抵抗 R [Ω] <b id="rText"></b></label><input id="resistance" type="number" value="1.4" step="0.1" /></div>
+      <div class="field"><label>巻線インダクタンス L [mH] <b id="lText"></b></label><input id="inductance" type="number" value="3.0" step="0.1" /></div>
+      <div class="field"><label>Kt / Ke [N·m/A] <b id="ktText"></b></label><input id="kt" type="number" value="0.28" step="0.01" /></div>
+      <div class="field"><label>電圧降下 [V] <b id="dropText"></b></label><input id="drop" type="number" value="1.2" step="0.1" /></div>
+    </div></details>
+    <details><summary>機械パラメータ</summary><div class="row">
+      <div class="field"><label>慣性 J [kg·m²] <b id="jText"></b></label><input id="inertia" type="number" value="0.000035" step="0.000005" /></div>
+      <div class="field"><label>粘性摩擦 B [N·m·s/rad] <b id="dampingText"></b></label><input id="damping" type="number" value="0.045" step="0.001" /></div>
+      <div class="field"><label>負荷トルク [N·m] <b id="loadText"></b></label><input id="load" type="number" value="0.010" step="0.005" /></div>
+      <div class="field"><label>ディテント [N·m] <b id="detentText"></b></label><input id="detent" type="number" value="0.004" step="0.001" /></div>
+      <div class="field"><label>ロータ歯数 Nr <b id="cyclesText"></b></label><input id="cycles" type="number" value="50" step="1" /></div>
+    </div></details>
+    <details open><summary>式と実装の要点</summary>
+      <p class="mini">今回の修正では、指令角を連続的に回さず、STEPパルスごとに commandIndex を1だけ進めます。指令磁界は離散的に移動しますが、ロータ角 θm は運動方程式で積分されるため瞬間移動しません。</p>
+      <div class="equations">commandIndex += 1 per STEP pulse
+θcmd,e = commandIndex × Δθcmd,e
+指令電流はzero-order holdで保持
+
+Microstep: Δθcmd,e = 90° / microsteps
+Half-step: Δθcmd,e = 45°
+Full/Wave: Δθcmd,e = 90°
+
+θe = Nr × θm
+Nr = 50 → full_steps/rev = 4Nr = 200
+1 full-step = 360/(4Nr) = 1.8°
+
+v = R i + L di/dt + e_bemf + v_drop
+Te = Kt(-iA sinθe + iB cosθe)
+J dωm/dt = Te + Tdetent - Tload - Bωm</div>
+    </details>
+    <span class="badge">v4: STEPパルスを離散実装</span><span class="badge">ロータは連続運動</span><span class="badge">50歯/1.8°表示</span>
+  </aside>
+</main>
+<script>
+(() => {
+  const TAU = Math.PI * 2;
+  const HALF_PI = Math.PI / 2;
+  const canvas = document.getElementById('lab');
+  const ctx = canvas.getContext('2d');
+  const D = id => document.getElementById(id);
+
+  const presets = {
+    stable: { label:'低速・安定', driveMode:'micro', driverMode:'current', timeScale:0.5, pps:10, accel:60, responseTime:0.70, vbus:24, imax:1.6, resistance:1.4, inductance:3.0, kt:0.28, drop:1.2, inertia:0.000035, damping:0.045, load:0.010, detent:0.004, cycles:50, microsteps:32 },
+    stepResponse: { label:'1 full-step応答を観察', driveMode:'full', driverMode:'current', timeScale:0.45, pps:0.0, accel:30, responseTime:0.90, vbus:24, imax:1.4, resistance:1.4, inductance:3.0, kt:0.28, drop:1.2, inertia:0.000045, damping:0.030, load:0.005, detent:0.004, cycles:50, microsteps:32 },
+    voltageLimited: { label:'高速で電圧余裕不足', driveMode:'micro', driverMode:'current', timeScale:0.05, pps:450, accel:1800, responseTime:0.25, vbus:12, imax:1.8, resistance:1.6, inductance:12.0, kt:0.32, drop:1.5, inertia:0.000045, damping:0.012, load:0.045, detent:0.004, cycles:50, microsteps:64 },
+    aggressiveAccel: { label:'加速が急すぎる', driveMode:'micro', driverMode:'current', timeScale:0.08, pps:260, accel:3500, responseTime:0.30, vbus:24, imax:1.7, resistance:1.4, inductance:3.2, kt:0.28, drop:1.2, inertia:0.00012, damping:0.010, load:0.035, detent:0.004, cycles:50, microsteps:32 },
+    heavyLoad: { label:'負荷トルクが大きすぎる', driveMode:'micro', driverMode:'current', timeScale:0.12, pps:35, accel:300, responseTime:0.50, vbus:24, imax:1.4, resistance:1.6, inductance:3.5, kt:0.24, drop:1.2, inertia:0.000055, damping:0.020, load:0.29, detent:0.004, cycles:50, microsteps:32 },
+    slowDecay: { label:'slow decayで電流が残る', driveMode:'micro', driverMode:'slow', timeScale:0.07, pps:180, accel:900, responseTime:0.35, vbus:24, imax:1.6, resistance:1.2, inductance:8.0, kt:0.28, drop:1.2, inertia:0.00004, damping:0.012, load:0.04, detent:0.004, cycles:50, microsteps:32 },
+    voltageMode: { label:'電圧モードPWMの高速限界', driveMode:'micro', driverMode:'voltage', timeScale:0.06, pps:320, accel:1000, responseTime:0.35, vbus:24, imax:1.6, resistance:1.4, inductance:3.0, kt:0.28, drop:1.2, inertia:0.000045, damping:0.010, load:0.04, detent:0.004, cycles:50, microsteps:64 }
+  };
+
+  const controls = {
+    preset: D('preset'), driveMode: D('driveMode'), driverMode: D('driverMode'),
+    timeScale: D('timeScale'), pps: D('pps'), accel: D('accel'), responseTime: D('responseTime'), sweep: D('sweep'), rollMode: D('rollMode'), vGain: D('vGain'), tRange: D('tRange'), rotorZoom: D('rotorZoom'),
+    vbus: D('vbus'), imax: D('imax'), resistance: D('resistance'), inductance: D('inductance'), kt: D('kt'), drop: D('drop'),
+    inertia: D('inertia'), damping: D('damping'), load: D('load'), detent: D('detent'), cycles: D('cycles'), microsteps: D('microsteps')
+  };
+
+  const state = {
+    playing: false,
+    direction: 1,
+    t: 0,
+    commandIndex: 0,
+    commandPulseAccumulator: 0,
+    fullStepRate: 0,
+    thetaM: 0,
+    omegaM: 0,
+    ia: 0,
+    ib: 0,
+    iaRefPrev: 0,
+    ibRefPrev: 0,
+    lastWall: performance.now(),
+    hist: [],
+    events: [],
+    responseLeft: 0,
+    riskLatch: 0,
+    lastStepLabel: 'なし',
+    lastHistT: -1,
+    needsRedraw: true,
+    waveLayout: 'stack'
+  };
+
+  function num(id) { return Number(controls[id].value); }
+  function params() {
+    return {
+      driveMode: controls.driveMode.value,
+      driverMode: controls.driverMode.value,
+      timeScale: Math.max(0.01, num('timeScale')),
+      pps: Math.max(0, num('pps')),
+      accel: Math.max(0.1, num('accel')),
+      responseTime: Math.max(0.01, num('responseTime')),
+      sweep: Math.min(30, Math.max(0.05, num('sweep'))),
+      rollMode: controls.rollMode.value,
+      vGain: Math.max(0.25, num('vGain')),
+      tRange: controls.tRange.value,
+      rotorZoom: controls.rotorZoom.value,
+      vbus: Math.max(0.1, num('vbus')),
+      imax: Math.max(0.05, num('imax')),
+      resistance: Math.max(0.05, num('resistance')),
+      inductance: Math.max(0.05, num('inductance')) / 1000,
+      kt: Math.max(0.001, num('kt')),
+      drop: Math.max(0, num('drop')),
+      inertia: Math.max(1e-8, num('inertia')),
+      damping: Math.max(0, num('damping')),
+      load: Math.max(0, num('load')),
+      detent: Math.max(0, num('detent')),
+      cycles: Math.max(1, num('cycles')),
+      microsteps: Math.max(1, Math.round(num('microsteps')))
+    };
+  }
+
+  function commandStepAngleE(p) {
+    if (p.driveMode === 'micro') return HALF_PI / p.microsteps;
+    if (p.driveMode === 'half') return Math.PI / 4;
+    return HALF_PI;
+  }
+  function commandStepsPerFullStep(p) { return Math.max(1, Math.round(HALF_PI / commandStepAngleE(p))); }
+  function fullStepAngleMechDeg(p) { return 360 / (4 * p.cycles); }
+  function commandStepAngleMechDeg(p) { return fullStepAngleMechDeg(p) / commandStepsPerFullStep(p); }
+
+  function currentReferencesFromIndex(index, p) {
+    const I = p.imax;
+    if (p.driveMode === 'wave') {
+      const q = index * HALF_PI;
+      return { ia:I*Math.cos(q), ib:I*Math.sin(q), cmdAngle:q, vectorMag:I, stepIndex:mod(index,4), stateName:`wave ${mod(index,4)}` };
+    }
+    if (p.driveMode === 'full') {
+      const q = index * HALF_PI + Math.PI / 4;
+      return { ia:I*signNonzero(Math.cos(q)), ib:I*signNonzero(Math.sin(q)), cmdAngle:q, vectorMag:Math.SQRT2*I, stepIndex:mod(index,4), stateName:`full ${mod(index,4)}` };
+    }
+    if (p.driveMode === 'half') {
+      const q = index * Math.PI / 4;
+      const even = mod(index,2) === 0;
+      if (even) return { ia:I*Math.cos(q), ib:I*Math.sin(q), cmdAngle:q, vectorMag:I, stepIndex:mod(index,8), stateName:`half ${mod(index,8)} / 1相` };
+      return { ia:I*signNonzero(Math.cos(q)), ib:I*signNonzero(Math.sin(q)), cmdAngle:q, vectorMag:Math.SQRT2*I, stepIndex:mod(index,8), stateName:`half ${mod(index,8)} / 2相` };
+    }
+    const dtheta = HALF_PI / p.microsteps;
+    const q = index * dtheta;
+    return { ia:I*Math.cos(q), ib:I*Math.sin(q), cmdAngle:q, vectorMag:I, stepIndex:mod(index, 4*p.microsteps), stateName:`micro ${mod(index,4*p.microsteps)}/${4*p.microsteps}` };
+  }
+
+  function applyPreset(key) {
+    const p = presets[key];
+    if (!p) return;
+    for (const [k, v] of Object.entries(p)) if (controls[k]) controls[k].value = v;
+    D('presetName').textContent = p.label;
+    resetState(true);
+  }
+
+  function resetState(syncCurrent) {
+    const p = params();
+    state.playing = false;
+    state.t = 0;
+    state.commandIndex = 0;
+    state.commandPulseAccumulator = 0;
+    state.fullStepRate = 0;
+    state.thetaM = 0;
+    state.omegaM = 0;
+    state.hist = [];
+    state.events = [];
+    state.responseLeft = 0;
+    state.riskLatch = 0;
+    state.lastStepLabel = 'なし';
+    state.lastHistT = -1;
+    const refs = currentReferencesFromIndex(state.commandIndex, p);
+    const field0 = Math.atan2(refs.ib, refs.ia);
+    const torqueCapacity0 = Math.max(1e-9, p.kt * Math.hypot(refs.ia, refs.ib));
+    const staticLag0 = Math.asin(clamp(p.load / torqueCapacity0, -0.50, 0.50));
+    state.thetaM = (field0 - state.direction * staticLag0) / p.cycles;
+    state.omegaM = 0;
+    state.ia = syncCurrent ? refs.ia : 0;
+    state.ib = syncCurrent ? refs.ib : 0;
+    state.iaRefPrev = refs.ia;
+    state.ibRefPrev = refs.ib;
+    D('play').textContent = '連続再生';
+  }
+
+  function issueCommandSteps(n, p, label) {
+    const old = state.commandIndex;
+    state.commandIndex += n;
+    state.lastStepLabel = `${label}: ${old} → ${state.commandIndex}`;
+    state.events.push({ t: state.t, from: old, to: state.commandIndex, label });
+    while (state.events.length > 36) state.events.shift();
+  }
+
+  function updatePulseGenerator(dt, p) {
+    const targetRate = state.direction * p.pps;
+    const dRate = clamp(targetRate - state.fullStepRate, -p.accel * dt, p.accel * dt);
+    state.fullStepRate += dRate;
+    const cps = Math.abs(state.fullStepRate) * commandStepsPerFullStep(p);
+    state.commandPulseAccumulator += cps * dt;
+    let count = 0;
+    const maxPulsesPerDt = 2000;
+    while (state.commandPulseAccumulator >= 1 && count < maxPulsesPerDt) {
+      issueCommandSteps(signNonzero(state.fullStepRate, state.direction), p, 'STEP pulse');
+      state.commandPulseAccumulator -= 1;
+      count++;
+    }
+    if (count >= maxPulsesPerDt) state.commandPulseAccumulator = 0;
+  }
+
+  function phaseStep(i, iRef, iRefDot, bemf, p, dt) {
+    const R = p.resistance;
+    const L = p.inductance;
+    const Vmax = Math.max(0.1, p.vbus - p.drop);
+    const err = iRef - i;
+    const tauCtrl = 0.00035;
+    const required = R * iRef + bemf + L * (iRefDot + err / tauCtrl);
+    let v;
+    if (p.driverMode === 'ideal') {
+      return { i:iRef, v:R*iRef+bemf+L*iRefDot, required:R*iRef+bemf+L*iRefDot, saturated:false };
+    }
+    if (p.driverMode === 'voltage') {
+      v = R * iRef + L * iRefDot;
+    } else if (p.driverMode === 'fast') {
+      v = Math.abs(err) < 0.004 ? R * i + bemf : signNonzero(err) * Vmax;
+    } else if (p.driverMode === 'slow') {
+      const sameSign = Math.sign(iRef) === Math.sign(i) || Math.abs(iRef) < 1e-9;
+      const reducing = sameSign && Math.abs(iRef) < Math.abs(i) - 0.002;
+      v = reducing ? 0 : (Math.abs(err) < 0.004 ? R * i + bemf : signNonzero(err) * Vmax);
+    } else if (p.driverMode === 'mixed') {
+      const sameSign = Math.sign(iRef) === Math.sign(i) || Math.abs(iRef) < 1e-9;
+      const reducing = sameSign && Math.abs(iRef) < Math.abs(i) - 0.002;
+      v = reducing ? -0.46 * signNonzero(i) * Vmax : clamp(required, -Vmax, Vmax);
+    } else {
+      v = clamp(required, -Vmax, Vmax);
+    }
+    v = clamp(v, -Vmax, Vmax);
+    const di = (v - R * i - bemf) / L;
+    const next = clamp(i + di * dt, -2.2 * p.imax, 2.2 * p.imax);
+    return { i:next, v, required, saturated:Math.abs(required) > Vmax + 1e-9 };
+  }
+
+  function stepPhysics(dt, allowPulses, p) {
+    if (allowPulses) updatePulseGenerator(dt, p);
+    else state.fullStepRate = 0;
+
+    const refs = currentReferencesFromIndex(state.commandIndex, p);
+    if (state.hist.length === 0 && state.t === 0) {
+      state.iaRefPrev = refs.ia;
+      state.ibRefPrev = refs.ib;
+    }
+    // STEP入力では電流テーブルの目標値が階段状に変わる。
+    // そのジャンプを1つの数値刻みの di_ref/dt として扱うと、
+    // 低速・安定条件でも「瞬間的に無限大の必要電圧」が出て、
+    // 見かけのジャンプや誤警告になる。実ドライバは新しい目標へ
+    // VM/R/L/BEMFの範囲で追従するので、ここでは目標微分を0に置く。
+    const iaRefDot = 0;
+    const ibRefDot = 0;
+    state.iaRefPrev = refs.ia;
+    state.ibRefPrev = refs.ib;
+
+    const thetaE = p.cycles * state.thetaM;
+    const ea = -p.kt * state.omegaM * Math.sin(thetaE);
+    const eb =  p.kt * state.omegaM * Math.cos(thetaE);
+    const pa = phaseStep(state.ia, refs.ia, iaRefDot, ea, p, dt);
+    const pb = phaseStep(state.ib, refs.ib, ibRefDot, eb, p, dt);
+    state.ia = pa.i;
+    state.ib = pb.i;
+
+    const torquePM = p.kt * (-state.ia * Math.sin(thetaE) + state.ib * Math.cos(thetaE));
+    const torqueDetent = -p.detent * Math.sin(4 * thetaE);
+    const intendedDir = state.direction || 1;
+    const load = p.load * signNonzero(state.omegaM || state.fullStepRate || intendedDir, intendedDir);
+    const torqueNet = torquePM + torqueDetent - load - p.damping * state.omegaM;
+    const alpha = torqueNet / p.inertia;
+    state.omegaM += alpha * dt;
+    state.thetaM += state.omegaM * dt;
+    state.t += dt;
+
+    const imag = Math.hypot(state.ia, state.ib);
+    const fieldAngle = Math.atan2(state.ib, state.ia);
+    const fieldLag = wrapPi(fieldAngle - p.cycles * state.thetaM);
+    const cmdLag = wrapPi(refs.cmdAngle - p.cycles * state.thetaM);
+    const currentRatio = imag / Math.max(p.imax, 1e-9);
+    const voltageUtil = Math.max(Math.abs(pa.required), Math.abs(pb.required)) / Math.max(0.1, p.vbus - p.drop);
+    const rawCmdErrorDeg = Math.abs(wrapPi(refs.cmdAngle - p.cycles * state.thetaM)) * 180 / Math.PI;
+    const risk = Math.min(1, Math.max(
+      smoothstep(65, 95, Math.abs(fieldLag) * 180 / Math.PI),
+      smoothstep(120, 360, rawCmdErrorDeg),
+      smoothstep(1.05, 1.55, voltageUtil),
+      smoothstep(0.02, 0.13, p.load - Math.abs(p.kt * imag) * 0.72)
+    ));
+    state.riskLatch = Math.max(risk, state.riskLatch * Math.exp(-dt * 1.6));
+
+    const histDt = Math.min(p.sweep/3000, 0.0025);
+    if (state.t - state.lastHistT >= histDt || state.hist.length === 0) {
+    state.lastHistT = state.t;
+    state.hist.push({
+      t:state.t, ia:state.ia, ib:state.ib, iar:refs.ia, ibr:refs.ib,
+      torque:torquePM, torqueDetent, omega:state.omegaM, thetaM:state.thetaM,
+      thetaE:p.cycles*state.thetaM, thetaCmd:refs.cmdAngle, thetaCmdM:refs.cmdAngle/p.cycles,
+      fieldAngle, fieldLag, cmdLag, currentRatio, voltageUtil, rawCmdErrorDeg, risk:state.riskLatch,
+      ea, eb, va:pa.v, vb:pb.v, stepIndex:refs.stepIndex, commandIndex:state.commandIndex,
+      fullStepRate:state.fullStepRate, commandStepMech:commandStepAngleMechDeg(p), stateName:refs.stateName
+    });
+    }
+    while (state.hist.length && state.t - state.hist[0].t > p.sweep*1.02) state.hist.shift();
+  }
+
+  function tick(now) {
+    const p = params();
+    const wallDt = Math.min(0.05, Math.max(0, (now - state.lastWall) / 1000));
+    state.lastWall = now;
+    const active = state.playing || state.responseLeft > 0;
+    if (active) {
+      let simDt = wallDt * p.timeScale;
+      const allowPulses = state.playing;
+      if (!state.playing) state.responseLeft = Math.max(0, state.responseLeft - simDt);
+      const baseDt = (p.driverMode==='fast'||p.driverMode==='slow'||p.driverMode==='mixed') ? 0.00002 : 0.00004;
+      const steps = Math.max(1, Math.min(1000, Math.ceil(simDt / baseDt)));
+      const dt = simDt / steps;
+      for (let i=0; i<steps; i++) stepPhysics(dt, allowPulses, p);
+      draw();
+      state.needsRedraw = false;
+    } else if (state.needsRedraw) {
+      draw();
+      state.needsRedraw = false;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function draw() {
+    const p = params();
+    const latest = state.hist[state.hist.length - 1] || snapshot(p);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawBackground();
+    drawElectricalPanel(24, 24, 620, 520, p, latest);
+    drawMechanicalPanel(668, 24, 700, 520, p, latest);
+    drawStepPanel(24, 574, 468, 250, p, latest);
+    drawVectorPanel(516, 574, 398, 250, p, latest);
+    drawMeters(938, 574, 430, 250, p, latest);
+    drawWaveform(24, 854, 1344, 540, p, latest);
+    updateLabels(p, latest);
+  }
+
+  function snapshot(p) {
+    const refs = currentReferencesFromIndex(state.commandIndex, p);
+    const thetaE = p.cycles * state.thetaM;
+    return {
+      t:state.t, ia:state.ia, ib:state.ib, iar:refs.ia, ibr:refs.ib,
+      torque:0, torqueDetent:0, omega:state.omegaM, thetaM:state.thetaM,
+      thetaE, thetaCmd:refs.cmdAngle, thetaCmdM:refs.cmdAngle/p.cycles,
+      fieldAngle:Math.atan2(state.ib, state.ia), fieldLag:wrapPi(Math.atan2(state.ib, state.ia)-thetaE),
+      cmdLag:wrapPi(refs.cmdAngle-thetaE), currentRatio:Math.hypot(state.ia,state.ib)/Math.max(p.imax,1e-9),
+      voltageUtil:0, rawCmdErrorDeg:Math.abs(wrapPi(refs.cmdAngle-thetaE))*180/Math.PI, risk:state.riskLatch,
+      ea:0, eb:0, va:0, vb:0, stepIndex:refs.stepIndex, commandIndex:state.commandIndex,
+      fullStepRate:state.fullStepRate, commandStepMech:commandStepAngleMechDeg(p), stateName:refs.stateName
+    };
+  }
+
+  function drawBackground() { ctx.fillStyle = '#0b121c'; roundRect(0,0,canvas.width,canvas.height,16,true,false); }
+  function panel(x,y,w,h,title,sub) {
+    ctx.save(); ctx.fillStyle = '#101a29'; ctx.strokeStyle = '#26334a'; ctx.lineWidth = 1; roundRect(x,y,w,h,18,true,true);
+    ctx.fillStyle = '#ecf2fb'; ctx.font = '800 22px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(title,x+18,y+30);
+    if (sub) { ctx.fillStyle = '#8d9bb0'; ctx.font = '13px "IBM Plex Sans JP", system-ui, sans-serif'; wrapText(sub,x+18,y+52,w-36,16,2); }
+    ctx.restore();
+  }
+
+  function drawElectricalPanel(x,y,w,h,p,m) {
+    panel(x,y,w,h,'Electrical-angle magnetic view','1磁気周期を電気角で見る図。灰破線=指令磁界、橙=実電流ベクトル、白=ロータ電気角。実断面図ではありません。');
+    const cx = x + w/2, cy = y + 245, r = 150;
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(0.76, 0.76);
+    ctx.strokeStyle = '#1c2737'; ctx.lineWidth = 58; ctx.beginPath(); ctx.arc(0,0,r+48,0,TAU); ctx.stroke();
+    ctx.strokeStyle = '#33415c'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(0,0,r+22,0,TAU); ctx.stroke();
+    drawCoil(-r-74, -38, 70, 76, p, 'A-', -m.ia);
+    drawCoil(r+4, -38, 70, 76, p, 'A+', m.ia);
+    drawCoil(-38, -r-74, 76, 70, p, 'B+', m.ib);
+    drawCoil(-38, r+4, 76, 70, p, 'B-', -m.ib);
+    ctx.strokeStyle = '#41506b'; ctx.lineWidth = 1.5; ctx.setLineDash([5,6]); line(-r-78,0,r+78,0); line(0,-r-78,0,r+78); ctx.setLineDash([]);
+    ctx.fillStyle = '#9fb0c6'; ctx.font = '800 14px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText('A相軸', r+58, -8); ctx.fillText('B相軸', 10, -r-58);
+    ctx.fillStyle = '#151f2f'; ctx.strokeStyle = '#93a4bc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0,0,88,0,TAU); ctx.fill(); ctx.stroke();
+    const thetaE = m.thetaE;
+    const etick = k => { const a = thetaE + k*TAU/20; const ro = k%5===0?112:104;
+      ctx.moveTo(Math.cos(a)*90, Math.sin(a)*90); ctx.lineTo(Math.cos(a)*ro, Math.sin(a)*ro); };
+    ctx.strokeStyle = '#4c5c77'; ctx.lineWidth = 1.6; ctx.beginPath();
+    for (let k=0;k<20;k++) if (k%5!==0) etick(k);
+    ctx.stroke();
+    ctx.strokeStyle = '#93a4bc'; ctx.lineWidth = 3; ctx.beginPath();
+    for (let k=0;k<20;k+=5) etick(k);
+    ctx.stroke();
+    drawArrow(0,0,Math.cos(m.thetaCmd)*138,Math.sin(m.thetaCmd)*138,'#93a4bc',2.5,true);
+    drawArrow(0,0,Math.cos(m.fieldAngle)*130,Math.sin(m.fieldAngle)*130,'#ffb02e',7,false);
+    drawArrow(0,0,Math.cos(thetaE)*84,Math.sin(thetaE)*84,'#f4f8ff',6,false);
+    const lag = wrapPi(m.fieldAngle - thetaE);
+    ctx.strokeStyle = Math.abs(lag)>Math.PI*0.48 ? '#ff4d4f' : '#3ad584';
+    ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0,0,112,thetaE,thetaE + lag*0.8,lag<0); ctx.stroke();
+    ctx.restore();
+    legendBox(x+22, y+h-98, 280, [ ['指令磁界', '#93a4bc', true], ['実電流ベクトル', '#ffb02e', false], ['ロータ電気角', '#f4f8ff', false], ['トルク角', Math.abs(m.fieldLag)>1.25?'#ff4d4f':'#3ad584', false] ]);
+    infoRows(x+302, y+h-104, w-324, 94, [
+      ['電気角遅れ δ', `${deg(wrapPi(m.fieldLag)).toFixed(1)}°`, Math.abs(m.fieldLag)>1.25?'#ff4d4f':'#ecf2fb'],
+      ['指令-ロータ', `${deg(wrapPi(m.cmdLag)).toFixed(1)}°e`, '#ecf2fb'],
+      ['電気角 θe', `${deg(angle01(m.thetaE)).toFixed(1)}°`, '#ecf2fb']
+    ]);
+  }
+
+  function drawCoil(x,y,w,h,p,label,current) {
+    const mag = clamp(Math.abs(current) / Math.max(p.imax, 1e-9),0,1);
+    const neutral = mag < 0.07; // ほぼ無通電 → 中立表示（N/Sを付けない）
+    const red = current >= 0;
+    ctx.save();
+    if (neutral) { ctx.fillStyle = 'rgba(141,155,176,0.08)'; ctx.strokeStyle = '#41506b'; }
+    else { ctx.fillStyle = red ? `rgba(255,93,82,${0.18+0.42*mag})` : `rgba(77,163,255,${0.18+0.42*mag})`; ctx.strokeStyle = red ? '#ff5d52' : '#4da3ff'; }
+    ctx.lineWidth = 2; roundRect(x,y,w,h,14,true,true);
+    ctx.fillStyle = neutral ? '#54647f' : (red ? '#ffe1de' : '#dcebff'); ctx.font = '800 20px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(neutral?'–':(red?'N':'S'), x+w/2-8, y+h/2+7);
+    ctx.fillStyle = '#b7c4d8'; ctx.font = '13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(label, x+8, y+18); ctx.restore();
+  }
+
+  function drawMechanicalPanel(x,y,w,h,p,m) {
+    if (p.rotorZoom === 'zoom') { drawToothZoomPanel(x,y,w,h,p,m); return; }
+    panel(x,y,w,h,'50-tooth rotor / mechanical view','ロータ歯数と機械角を表示。外周の8極はステータ磁極で、実電流の符号でN/Sが切り替わります(転流するほど磁極が回る)。');
+    const d = mechanicalDerived(p,m);
+    const cx = x + 170, cy = y + 252, outer = 112, inner = 64;
+    ctx.save(); ctx.translate(cx, cy);
+    ctx.strokeStyle = '#202b3e'; ctx.lineWidth = 18; ctx.beginPath(); ctx.arc(0,0,outer+35,0,TAU); ctx.stroke();
+    // 8 stator poles, live: A相がpole0,2,4,6 / B相がpole1,3,5,7。
+    // 隣り合う同相極は逆極性(N-S-N-S)。実電流の符号で極性が反転し、転流に合わせて磁極が回る。
+    for (let k=0;k<8;k++) {
+      const a = k*TAU/8;
+      const isA = k%2===0;
+      const cur = isA ? m.ia : m.ib;
+      const polSign = (Math.floor(k/2)%2===0) ? 1 : -1;
+      const eff = cur * polSign;
+      const mag = clamp(Math.abs(eff)/Math.max(p.imax,1e-9), 0, 1);
+      const neutral = mag < 0.07; // ほぼ無通電の相は中立表示
+      const north = eff >= 0;
+      ctx.strokeStyle = neutral ? 'rgba(141,155,176,0.14)'
+        : (north ? `rgba(255,93,82,${0.16+0.62*mag})` : `rgba(77,163,255,${0.16+0.62*mag})`);
+      ctx.lineWidth = 22;
+      line(Math.cos(a)*(outer+12),Math.sin(a)*(outer+12),Math.cos(a)*(outer+44),Math.sin(a)*(outer+44));
+      const lx = Math.cos(a)*(outer+28), ly = Math.sin(a)*(outer+28);
+      ctx.fillStyle = neutral ? '#54647f' : (north ? '#ffe1de' : '#dcebff'); ctx.font = '800 13px "IBM Plex Sans JP", system-ui, sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(neutral?'–':(north?'N':'S'), lx, ly);
+      ctx.fillStyle = '#8d9bb0'; ctx.font = '10px "IBM Plex Mono", monospace';
+      ctx.fillText(isA?'A':'B', Math.cos(a)*(outer+58), Math.sin(a)*(outer+58));
+      ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+    }
+    ctx.fillStyle = '#151f2f'; ctx.strokeStyle = '#5d6e88'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0,0,outer,0,TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#0e1622'; ctx.beginPath(); ctx.arc(0,0,inner,0,TAU); ctx.fill();
+    const Ndraw = Math.max(6, Math.min(120, d.Nr));
+    const tooth = k => { const a = m.thetaM + k*TAU/Ndraw; const ro = outer + (k%5===0?18:12);
+      ctx.moveTo(Math.cos(a)*(outer-4), Math.sin(a)*(outer-4)); ctx.lineTo(Math.cos(a)*ro, Math.sin(a)*ro); };
+    ctx.strokeStyle = '#4c5c77'; ctx.lineWidth = 1.4; ctx.beginPath();
+    for (let k=1;k<Ndraw;k++) if (k%5!==0) tooth(k);
+    ctx.stroke();
+    ctx.strokeStyle = '#93a4bc'; ctx.lineWidth = 2.2; ctx.beginPath();
+    for (let k=5;k<Ndraw;k+=5) tooth(k);
+    ctx.stroke();
+    ctx.strokeStyle = '#f4f8ff'; ctx.lineWidth = 3.8; ctx.beginPath(); tooth(0); ctx.stroke();
+    drawArrow(0,0,Math.cos(m.thetaM)*96,Math.sin(m.thetaM)*96,'#f4f8ff',5,false);
+    drawArrow(0,0,Math.cos(m.thetaCmdM)*134,Math.sin(m.thetaCmdM)*134,'#93a4bc',2.5,true);
+    ctx.restore();
+    legendBox(x+26, y+h-80, 250, [ ['実ロータ θm', '#f4f8ff', false], ['指令機械角', '#93a4bc', true], ['強調歯', '#93a4bc', false] ]);
+
+    const tx = x + 330;
+    ctx.save(); ctx.fillStyle = '#ecf2fb'; ctx.font = '800 19px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(`Nr = ${d.Nr} teeth`, tx, y+88);
+    ctx.fillStyle = '#8d9bb0'; ctx.font = '14px "IBM Plex Sans JP", system-ui, sans-serif';
+    ctx.fillText(`full-steps/rev = 4 × Nr = ${d.stepsPerRev}`, tx, y+116);
+    ctx.fillText(`1 full-step = ${d.fullStepDeg.toFixed(3)}° mechanical`, tx, y+140);
+    ctx.fillText(`1 command step = ${d.commandStepDeg.toFixed(5)}° mechanical`, tx, y+164);
+    ctx.fillText(`θe = Nr × θm = ${d.Nr} × θm`, tx, y+188);
+    drawStepScale(tx, y+232, w-370, d);
+    infoRows(tx, y+h-120, w-360, 94, [
+      ['機械角 θm', `${d.mechDeg.toFixed(3)}°`, '#ecf2fb'],
+      ['指令機械角', `${d.cmdMechDeg.toFixed(3)}°`, '#ecf2fb'],
+      ['誤差', `${d.cmdErrMechDeg.toFixed(3)}°m`, Math.abs(d.cmdErrMechDeg)>d.fullStepDeg*0.8?'#ff4d4f':'#ecf2fb'],
+      ['歯 index', `#${d.rotorToothIndex}`, '#ecf2fb']
+    ]);
+    ctx.restore();
+  }
+
+
+  function drawToothZoomPanel(x,y,w,h,p,m) {
+    panel(x,y,w,h,'拡大: 磁極と歯の整列（展開図）','横軸=機械角の展開図。隣の磁極は1/4歯ピッチずれて配置。転流ごとに歯は1.8°進みます。');
+    const d = mechanicalDerived(p,m);
+    const pitch = d.electricalPeriodDeg;            // 歯ピッチ [°] = 360/Nr
+    const win0 = -15, win1 = 105;                   // 表示窓 [° mech]: 磁極 0°/45°/90° を含む
+    const px0 = x+36, pw = w-72;
+    const DX = a => px0 + (a - win0)/(win1-win0)*pw;
+    const toothW = pitch*0.42;
+    const bodyY = y+128, bodyH = 46, ptH = 38;
+    const rtY = bodyY+bodyH+ptH+22, rtH = 38;
+    const baseY = rtY+rtH, baseH = 16;
+
+    ctx.save();
+    // ---- ステータ磁極 (A+ @0°, B+ @45°, A− @90°) ----
+    const poles = [ {ang:0, phase:'A', sign:+1}, {ang:45, phase:'B', sign:+1}, {ang:90, phase:'A', sign:-1} ];
+    let best=-1, bestMag=0.07;
+    poles.forEach((P,i)=>{ const mg=Math.abs((P.phase==='A'?m.ia:m.ib)*P.sign)/Math.max(p.imax,1e-9); if(mg>bestMag){bestMag=mg;best=i;} });
+    for (let i=0;i<poles.length;i++) {
+      const P = poles[i];
+      const cur = (P.phase==='A'?m.ia:m.ib)*P.sign;
+      const mg = clamp(Math.abs(cur)/Math.max(p.imax,1e-9),0,1);
+      const neutral = mg < 0.07;
+      const north = cur >= 0;
+      const fill = neutral ? 'rgba(141,155,176,0.10)' : (north?`rgba(255,93,82,${0.16+0.55*mg})`:`rgba(77,163,255,${0.16+0.55*mg})`);
+      const edge = neutral ? '#41506b' : (north?'#ff5d52':'#4da3ff');
+      const bx0 = DX(P.ang-10), bx1 = DX(P.ang+10);
+      ctx.fillStyle=fill; ctx.strokeStyle=edge; ctx.lineWidth=1.6;
+      roundRect(bx0, bodyY, bx1-bx0, bodyH, 7, true, true);
+      for (let mm=-1; mm<=1; mm++) {
+        const tc = P.ang + mm*pitch;
+        roundRect(DX(tc-toothW/2), bodyY+bodyH, DX(tc+toothW/2)-DX(tc-toothW/2), ptH, 3, true, true);
+        ctx.save(); ctx.strokeStyle='rgba(141,155,176,0.22)'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+        line(DX(tc), bodyY+bodyH+ptH, DX(tc), baseY+baseH+4); ctx.setLineDash([]); ctx.restore();
+        ctx.strokeStyle=edge;
+      }
+      ctx.textAlign='center';
+      ctx.fillStyle = neutral ? '#54647f' : (north?'#ffe1de':'#dcebff');
+      ctx.font='800 17px "IBM Plex Sans JP", system-ui, sans-serif';
+      ctx.fillText(neutral?'–':(north?'N':'S'), (bx0+bx1)/2, bodyY+30);
+      ctx.fillStyle='#8d9bb0'; ctx.font='11px "IBM Plex Mono", monospace';
+      ctx.fillText(`${P.phase}${P.sign>0?'+':'−'} @ ${P.ang}°`, (bx0+bx1)/2, bodyY-9);
+      ctx.textAlign='left';
+      if (i===best) { ctx.strokeStyle=edge; ctx.lineWidth=3; line(bx0, bodyY-3, bx1, bodyY-3); }
+    }
+
+    // ---- ロータ歯: パターンは θm mod pitch で決まりスライドする ----
+    ctx.fillStyle='#22304a'; roundRect(px0-8, baseY, pw+16, baseH, 6, true, false);
+    const off = mod(d.mechDeg, pitch);
+    ctx.fillStyle='#9fb0c6'; ctx.strokeStyle='#c8d4e6'; ctx.lineWidth=1.2;
+    for (let tc = off - Math.ceil((off-win0)/pitch+1)*pitch; tc <= win1 + pitch; tc += pitch) {
+      if (tc < win0 - pitch) continue;
+      roundRect(DX(tc-toothW/2), rtY, DX(tc+toothW/2)-DX(tc-toothW/2), rtH, 3, true, true);
+    }
+    // 指令位置のゴースト歯（橙破線）
+    const offC = mod(d.cmdMechDeg, pitch);
+    ctx.setLineDash([4,4]); ctx.strokeStyle='#ffb02e'; ctx.lineWidth=1.5;
+    for (let tc = offC - Math.ceil((offC-win0)/pitch+1)*pitch; tc <= win1 + pitch; tc += pitch) {
+      if (tc < win0 - pitch) continue;
+      roundRect(DX(tc-toothW/2), rtY, DX(tc+toothW/2)-DX(tc-toothW/2), rtH, 3, false, true);
+    }
+    ctx.setLineDash([]);
+
+    // ---- ピッチ目盛・凡例・注記 ----
+    const by = baseY + baseH + 26;
+    ctx.strokeStyle='#54647f'; ctx.lineWidth=1.4;
+    line(DX(off), by, DX(off+pitch), by); line(DX(off), by-5, DX(off), by+5); line(DX(off+pitch), by-5, DX(off+pitch), by+5);
+    line(DX(off), by+18, DX(off+pitch/4), by+18); line(DX(off+pitch/4), by+13, DX(off+pitch/4), by+23);
+    ctx.fillStyle='#8d9bb0'; ctx.font='12px "IBM Plex Mono", monospace';
+    ctx.fillText(`1歯ピッチ = ${pitch.toFixed(1)}°`, DX(off+pitch)+10, by+4);
+    ctx.fillStyle='#ffb02e';
+    ctx.fillText(`1 full-step = ${d.fullStepDeg.toFixed(1)}° = 1/4歯ピッチ`, DX(off+pitch/4)+10, by+22);
+    ctx.strokeStyle='#9fb0c6'; ctx.lineWidth=3; line(px0, by+40, px0+30, by+40);
+    ctx.fillStyle='#9fb0c6'; ctx.font='12px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText('実ロータ歯', px0+38, by+44);
+    ctx.strokeStyle='#ffb02e'; ctx.setLineDash([5,4]); line(px0+140, by+40, px0+170, by+40); ctx.setLineDash([]);
+    ctx.fillStyle='#ffb02e'; ctx.fillText('指令位置（破線）', px0+178, by+44);
+    ctx.fillStyle='#8d9bb0';
+    ctx.fillStyle='#8d9bb0'; ctx.font='12px "IBM Plex Sans JP", system-ui, sans-serif';
+    ctx.fillText('A−極が半ピッチずれて見えるのは正常（実機では軸方向反対カップの歯が整列）。磁極は歯3本に簡略化。', x+24, by+66);
+
+    const misalign = off > pitch/2 ? off - pitch : off;
+    infoRows(x+24, y+h-66, w-48, 52, [
+      ['機械角 θm', `${d.mechDeg.toFixed(3)}°`, '#ecf2fb'],
+      ['指令', `${d.cmdMechDeg.toFixed(3)}°`, '#ecf2fb'],
+      ['0°極との整列ずれ', `${misalign.toFixed(2)}°`, Math.abs(misalign)>pitch*0.3?'#ffa133':'#ecf2fb'],
+      ['歯 index', `#${d.rotorToothIndex}`, '#ecf2fb']
+    ]);
+    ctx.restore();
+  }
+
+  function drawStepScale(x,y,w,d) {
+    const h = 76;
+    ctx.save();
+    ctx.fillStyle = '#0e1622'; ctx.strokeStyle = '#26334a'; roundRect(x,y,w,h,14,true,true);
+    const sx=x+20, sy=y+36, sw=w-40;
+    ctx.strokeStyle = '#4c5c77'; ctx.lineWidth = 2; line(sx,sy,sx+sw,sy);
+    for (let i=0;i<=4;i++) {
+      const px=sx+sw*i/4;
+      ctx.strokeStyle = i===0||i===4 ? '#93a4bc' : '#4c5c77'; ctx.lineWidth = i===0||i===4 ? 2 : 1;
+      line(px,sy-12,px,sy+12);
+      ctx.fillStyle='#8d9bb0'; ctx.font='12px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(`${(d.fullStepDeg*i).toFixed(1)}°`, px-13, sy+29);
+    }
+    const phaseX = sx + sw * (d.periodPhaseDeg / d.electricalPeriodDeg);
+    ctx.fillStyle = '#ffb02e'; ctx.beginPath(); ctx.arc(phaseX,sy,6,0,TAU); ctx.fill();
+    ctx.fillStyle='#ecf2fb'; ctx.font='700 13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText('現在位置 in 1電気周期', sx, y+18);
+    ctx.restore();
+  }
+
+  function drawStepPanel(x,y,w,h,p,m) {
+    panel(x,y,w,h,'STEP pulse model','指令はSTEPごとに離散移動。ここがv3の修正点です。');
+    const d = mechanicalDerived(p,m);
+    infoRows(x+18,y+68,w-36,74,[
+      ['commandIndex', `${state.commandIndex}`, '#ecf2fb'],
+      ['状態', m.stateName, '#ecf2fb'],
+      ['1 command step', `${d.commandStepDeg.toFixed(5)}°m`, '#ecf2fb']
+    ]);
+    ctx.save();
+    ctx.fillStyle='#8d9bb0'; ctx.font='13px "IBM Plex Sans JP", system-ui, sans-serif';
+    wrapText(`最後: ${state.lastStepLabel}`, x+20, y+164, w-40, 16, 2);
+    ctx.fillStyle='#ecf2fb'; ctx.font='800 14px "IBM Plex Sans JP", system-ui, sans-serif';
+    ctx.fillText(`1 full-stepボタン = ${commandStepsPerFullStep(p)} command step`, x+20, y+202);
+    const gx=x+20, gy=y+222, gw=w-40;
+    ctx.strokeStyle='#26334a'; ctx.lineWidth=1.5; line(gx,gy,gx+gw,gy);
+    for (const ev of state.events) {
+      const age = state.t - ev.t;
+      if (age < 4.0) {
+        const px = gx + gw * (1 - age/4.0);
+        ctx.strokeStyle = ev.label.includes('full') ? '#ffb02e' : '#93a4bc';
+        ctx.lineWidth = ev.label.includes('full') ? 3 : 1.5;
+        line(px, gy-18, px, gy+18);
+      }
+    }
+    ctx.fillStyle='#8d9bb0'; ctx.font='12px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText('直近4秒のSTEPイベント', gx, gy-24);
+    ctx.restore();
+  }
+
+  function drawVectorPanel(x,y,w,h,p,m) {
+    panel(x,y,w,h,'Current vector XY','横=A相、縦=B相。灰点=指令テーブル、橙=実電流。');
+    const cx = x+w/2, cy = y+h/2+24, r = 82;
+    ctx.save(); ctx.translate(cx,cy);
+    ctx.strokeStyle = '#26334a'; ctx.lineWidth = 1; for (const rr of [r*0.5,r]) { ctx.beginPath(); ctx.arc(0,0,rr,0,TAU); ctx.stroke(); }
+    ctx.strokeStyle = '#54647f'; line(-r-12,0,r+12,0); line(0,r+12,0,-r-12);
+    ctx.fillStyle = '#8d9bb0'; ctx.font='13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText('+A',r+15,4); ctx.fillText('+B',5,-r-12);
+    drawReferencePoints(p,r);
+    const sx = r / Math.max(p.imax*Math.SQRT2,1e-9);
+    drawArrow(0,0,m.iar*sx,-m.ibr*sx,'#93a4bc',2,true);
+    drawArrow(0,0,m.ia*sx,-m.ib*sx,'#ffb02e',5,false);
+    ctx.restore();
+  }
+
+  function drawReferencePoints(p,r) {
+    const scale = r / Math.max(p.imax*Math.SQRT2, 1e-9);
+    ctx.save(); ctx.fillStyle='#4c5c77';
+    let pts=[];
+    const steps = p.driveMode==='micro' ? Math.min(128, 4*p.microsteps) : (p.driveMode==='half' ? 8 : 4);
+    for (let k=0;k<steps;k++) { const refs = currentReferencesFromIndex(k,p); pts.push([refs.ia, refs.ib]); }
+    if (p.driveMode==='micro') { ctx.strokeStyle='#4c5c77'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,p.imax*scale,0,TAU); ctx.stroke(); }
+    for (const [a,b] of pts) { ctx.beginPath(); ctx.arc(a*scale,-b*scale,2.5,0,TAU); ctx.fill(); }
+    ctx.restore();
+  }
+
+  function drawMeters(x,y,w,h,p,m) {
+    panel(x,y,w,h,'状態 / トルク / リスク','電流・電圧余裕・遅れ角・脱調リスクの目安。');
+    const riskColor = m.risk > 0.72 ? '#ff4d4f' : m.risk > 0.38 ? '#ffa133' : '#3ad584';
+    const top=y+78, gap=36, bh=12;
+    meter(x+24,top,       w-48,bh,Math.min(1,m.currentRatio/Math.SQRT2),'実電流振幅', '#ffb02e');
+    meter(x+24,top+gap,   w-48,bh,Math.min(1,m.voltageUtil/1.5),'必要電圧 / VM', m.voltageUtil>1?'#ff4d4f':'#b08cff');
+    meter(x+24,top+2*gap, w-48,bh,Math.min(1,Math.abs(m.fieldLag)/(Math.PI/2)),'ロータ遅れ角', Math.abs(m.fieldLag)>1.25?'#ff4d4f':'#4da3ff');
+    meter(x+24,top+3*gap, w-48,bh,m.risk,'脱調リスク', riskColor);
+    const rpm = m.omega * 60 / TAU, fe = p.cycles * Math.abs(m.omega) / TAU;
+    const ry = y+h-16;
+    ctx.save();
+    ctx.font='800 14px "IBM Plex Mono", monospace';
+    ctx.fillStyle='#ecf2fb'; ctx.fillText(`Te ${m.torque.toFixed(3)} N·m`, x+24, ry);
+    ctx.fillStyle='#ffb02e'; ctx.fillText(`${rpm.toFixed(1)} rpm`, x+186, ry);
+    ctx.fillStyle='#8d9bb0'; ctx.fillText(`${fe.toFixed(1)} Hz(e)`, x+286, ry);
+    ctx.restore();
+  }
+
+  let waveToggleRect = null;
+  function drawWaveform(x,y,w,h,p,m) {
+    const side = state.waveLayout === 'side';
+    panel(x,y,w,h,`波形モニタ（掃引 ${p.sweep>=1?p.sweep.toFixed(0):p.sweep>=0.1?p.sweep.toFixed(1):p.sweep.toFixed(2)} s・${p.rollMode==='roll'?'ロール':'蓄積'}）`,'実線=実電流／破線=指令。縦の点線はSTEPパルス。掃引・流し方・縦レンジは右の設定で変更できます。');
+    // タイトル横のレイアウト切替ボタン（クリック可能）
+    ctx.save();
+    const blabel = side ? 'レイアウト: 横並び ⇄' : 'レイアウト: 上下 ⇄';
+    ctx.font = '600 14px "IBM Plex Sans JP", system-ui, sans-serif';
+    const bw = ctx.measureText(blabel).width + 32, bx = x+448, by = y+10, bh = 32;
+    ctx.fillStyle = '#1a2638'; ctx.strokeStyle = '#3a4c6d'; ctx.lineWidth = 1.3;
+    roundRect(bx, by, bw, bh, 9, true, true);
+    ctx.fillStyle = '#ffb02e'; ctx.fillText(blabel, bx+16, by+21);
+    ctx.restore();
+    waveToggleRect = { x:bx, y:by, w:bw, h:bh };
+
+    const hist = state.hist;
+    const plotX = x+74, plotW = w-96;
+    const usable = h-150;
+    let curR, torR;
+    if (side) {
+      const gap = 74;
+      const cw = Math.round((plotW-gap)*0.56);
+      curR = { x:plotX, y:y+78, w:cw, h:usable+28 };
+      torR = { x:plotX+cw+gap, y:y+78, w:plotW-cw-gap, h:usable+28 };
+    } else {
+      const topH = usable*0.58;
+      curR = { x:plotX, y:y+78, w:plotW, h:topH };
+      torR = { x:plotX, y:y+78+topH+38, w:plotW, h:usable*0.42 };
+    }
+    const Imax = Math.max(0.1, p.imax*Math.SQRT2) / p.vGain;
+    const Tmax = p.tRange==='auto' ? Math.max(0.05, p.kt*p.imax*1.6) : Math.max(0.01, Number(p.tRange));
+    const fa = v => v>=10 ? v.toFixed(0) : (v>=1 ? v.toFixed(1) : v.toFixed(2));
+
+    ctx.save();
+    ctx.strokeStyle='#202b3e'; ctx.lineWidth=1;
+    ctx.strokeRect(curR.x,curR.y,curR.w,curR.h); ctx.strokeRect(torR.x,torR.y,torR.w,torR.h);
+    ctx.strokeStyle='#1c2737';
+    for (const R of [curR,torR]) for (let i=1;i<4;i++) { const gx=R.x+R.w*i/4; line(gx,R.y+1,gx,R.y+R.h-1); }
+
+    // 電流軸
+    const cZero = curR.y + curR.h/2;
+    ctx.strokeStyle='#2c3a52'; ctx.setLineDash([2,4]); line(curR.x,cZero,curR.x+curR.w,cZero); ctx.setLineDash([]);
+    ctx.fillStyle='#8d9bb0'; ctx.font='11px "IBM Plex Mono", monospace'; ctx.textAlign='right';
+    ctx.fillText(`+${fa(Imax)}`, curR.x-8, curR.y+11);
+    ctx.fillText('0', curR.x-8, cZero+3);
+    ctx.fillText(`-${fa(Imax)}`, curR.x-8, curR.y+curR.h-2);
+    if (p.imax < Imax*0.96) {
+      const yi = cZero - p.imax/Imax*(curR.h/2);
+      ctx.strokeStyle='rgba(255,176,46,0.30)'; ctx.setLineDash([5,6]); line(curR.x,yi,curR.x+curR.w,yi); line(curR.x,2*cZero-yi,curR.x+curR.w,2*cZero-yi); ctx.setLineDash([]);
+      ctx.textAlign='left'; ctx.fillStyle='rgba(255,176,46,0.75)'; ctx.font='10px "IBM Plex Mono", monospace';
+      ctx.fillText('±I_max', curR.x+5, yi-4);
+      ctx.font='11px "IBM Plex Mono", monospace'; ctx.fillStyle='#8d9bb0'; ctx.textAlign='right';
+    }
+    // トルク軸: ±Tmax の両極スケール（負トルクも見える）
+    const tZero = torR.y + torR.h/2;
+    ctx.strokeStyle='#2c3a52'; ctx.setLineDash([2,4]); line(torR.x,tZero,torR.x+torR.w,tZero); ctx.setLineDash([]);
+    ctx.fillStyle='#8d9bb0'; ctx.textAlign='right';
+    ctx.fillText(`+${fa(Tmax)}`, torR.x-8, torR.y+11);
+    ctx.fillText('0', torR.x-8, tZero+3);
+    ctx.fillText(`-${fa(Tmax)}`, torR.x-8, torR.y+torR.h-2);
+    ctx.textAlign='left'; ctx.fillStyle='#5d6e88'; ctx.font='10px "IBM Plex Mono", monospace';
+    ctx.fillText('risk 100%', torR.x+torR.w-62, torR.y+11);
+    ctx.fillText('risk 0%', torR.x+torR.w-50, torR.y+torR.h-5);
+
+    // 見出し・凡例
+    ctx.fillStyle='#ecf2fb'; ctx.font='700 13px "IBM Plex Sans JP", system-ui, sans-serif';
+    ctx.fillText('相電流 [A]', curR.x+4, curR.y-8);
+    ctx.fillText('トルク [N·m]（緑・±） / 脱調リスク（赤）', torR.x+4, torR.y-8);
+    legendLine(curR.x+curR.w-(side?250:300), curR.y-8, [ ['A実','#ff5d52',false], ['B実','#4da3ff',false], ['指令','#93a4bc',true], ['STEP','#39465e',true] ]);
+
+    if (hist.length>2) {
+      let t0, t1, span;
+      if (p.rollMode === 'accum') { t0 = hist[0].t; t1 = hist[hist.length-1].t; span = Math.max(1e-6, t1-t0); }
+      else { t1 = state.t; span = p.sweep; t0 = t1 - span; }
+      const Xc = t => curR.x + (t-t0)/span*curR.w;
+      const Xt = t => torR.x + (t-t0)/span*torR.w;
+      const Ycur = i => cZero - i/Imax*(curR.h/2);
+      const Ytor = tq => tZero - tq/Tmax*(torR.h/2 - 4);
+      const Yrisk = r => torR.y + torR.h - 2 - clamp(r,0,1)*(torR.h-8);
+      ctx.save(); ctx.beginPath(); ctx.rect(curR.x,curR.y,curR.w,curR.h); ctx.rect(torR.x,torR.y,torR.w,torR.h); ctx.clip();
+      for (const ev of state.events) if (ev.t>=t0 && ev.t<=t1) { const px=Xc(ev.t); ctx.strokeStyle='#39465e'; ctx.lineWidth=1; ctx.setLineDash([2,5]); line(px,curR.y+2,px,curR.y+curR.h-2); ctx.setLineDash([]); }
+      drawSeries(hist,d=>Xc(d.t),d=>Ycur(d.iar),'#ff5d52',1.2,[4,5]);
+      drawSeries(hist,d=>Xc(d.t),d=>Ycur(d.ibr),'#4da3ff',1.2,[4,5]);
+      drawSeries(hist,d=>Xc(d.t),d=>Ycur(d.ia),'#ff5d52',2.4,[]);
+      drawSeries(hist,d=>Xc(d.t),d=>Ycur(d.ib),'#4da3ff',2.4,[]);
+      drawSeries(hist,d=>Xt(d.t),d=>Ytor(d.torque),'#3ad584',2.2,[]);
+      drawSeries(hist,d=>Xt(d.t),d=>Yrisk(d.risk),'#ff4d4f',2.0,[]);
+      ctx.restore();
+      // 時間軸
+      const ft = v => v>=10 ? v.toFixed(0) : (v>=1 ? v.toFixed(1) : v.toFixed(2));
+      ctx.fillStyle='#8d9bb0'; ctx.font='11px "IBM Plex Mono", monospace'; ctx.textAlign='center';
+      const axes = side ? [curR, torR] : [torR];
+      for (const R of axes) {
+        const yb = R.y + R.h + 16;
+        if (side) { ctx.fillText(`-${ft(span)}`, R.x+16, yb); ctx.fillText(`-${ft(span/2)}`, R.x+R.w/2, yb); ctx.fillText('now', R.x+R.w-14, yb); }
+        else { for (let i=0;i<4;i++) ctx.fillText(`-${ft(span*(4-i)/4)}`, R.x+R.w*i/4 + (i===0?16:0), yb); ctx.fillText('now', R.x+R.w-14, yb); ctx.fillText('[s]', R.x+R.w+22, yb); }
+      }
+      ctx.textAlign='left';
+    } else {
+      ctx.fillStyle='#5d6e88'; ctx.font='14px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.textAlign='center';
+      ctx.fillText('▶ 連続再生 または STEP入力 で波形が流れます', x+w/2, curR.y+curR.h/2+4);
+      ctx.textAlign='left';
+    }
+    ctx.restore();
+  }
+
+  function mechanicalDerived(p,m) {
+    const Nr = Math.max(1, Math.round(p.cycles));
+    const stepsPerRev = 4 * Nr;
+    const fullStepDeg = 360 / stepsPerRev;
+    const electricalPeriodDeg = 360 / Nr;
+    const commandStepDeg = commandStepAngleMechDeg(p);
+    const mechDeg = deg(angle01(m.thetaM));
+    const elecDeg = deg(angle01(m.thetaE));
+    const cmdMechDeg = deg(angle01(m.thetaCmdM));
+    const cmdErrMechDeg = deg(wrapPi(m.cmdLag)) / Nr;
+    const rotorToothIndex = mod(Math.floor(angle01(m.thetaM) / TAU * Nr), Nr);
+    const periodPhaseDeg = mechDeg % electricalPeriodDeg;
+    return { Nr, stepsPerRev, fullStepDeg, electricalPeriodDeg, commandStepDeg, mechDeg, elecDeg, cmdMechDeg, cmdErrMechDeg, rotorToothIndex, periodPhaseDeg };
+  }
+
+  function meter(x,y,w,h,value,label,color) {
+    ctx.save(); value=clamp(value,0,1); ctx.fillStyle='#8d9bb0'; ctx.font='13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(label,x,y-8);
+    ctx.fillStyle='#1c2737'; roundRect(x,y,w,h,999,true,false); ctx.fillStyle=color; roundRect(x,y,w*value,h,999,true,false); ctx.strokeStyle='#26334a'; roundRect(x,y,w,h,999,false,true);
+    ctx.fillStyle='#ecf2fb'; ctx.font='700 13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(`${Math.round(value*100)}%`,x+w-38,y+h+16); ctx.restore();
+  }
+  function infoRows(x,y,w,h,items) {
+    ctx.save(); ctx.fillStyle='#151f2f'; ctx.strokeStyle='#26334a'; roundRect(x,y,w,h,14,true,true);
+    const col = w/items.length;
+    for (let i=0;i<items.length;i++) { const [k,v,c] = items[i]; ctx.fillStyle='#8d9bb0'; ctx.font='13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(k,x+12+i*col,y+22); ctx.fillStyle=c||'#ecf2fb'; ctx.font='800 17px "IBM Plex Sans JP", system-ui, sans-serif'; fitText(v,x+12+i*col,y+48,col-18); }
+    ctx.restore();
+  }
+  function legendBox(x,y,w,items) {
+    ctx.save(); ctx.fillStyle='#151f2f'; ctx.strokeStyle='#26334a'; roundRect(x,y,w,items.length*20+16,12,true,true);
+    let yy=y+20; for (const [txt,col,dash] of items) { ctx.strokeStyle=col; ctx.lineWidth=3; ctx.setLineDash(dash?[6,5]:[]); line(x+12,yy-4,x+42,yy-4); ctx.setLineDash([]); ctx.fillStyle='#9fb0c6'; ctx.font='13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(txt,x+50,yy); yy+=20; }
+    ctx.restore();
+  }
+  function legendLine(x,y,items) { ctx.save(); let xx=x; for (const [txt,col,dash] of items) { ctx.strokeStyle=col; ctx.lineWidth=3; ctx.setLineDash(dash?[5,4]:[]); line(xx,y+7,xx+24,y+7); ctx.setLineDash([]); ctx.fillStyle='#9fb0c6'; ctx.font='13px "IBM Plex Sans JP", system-ui, sans-serif'; ctx.fillText(txt,xx+30,y+11); xx += 66; } ctx.restore(); }
+  function drawSeries(data, xfn, yfn, color, width, dash) {
+    if (!data.length) return;
+    // 画面は約1200px幅なので、それ以上の点は描いても見えない。間引いてstrokeコストを抑える。
+    const stride = Math.max(1, Math.ceil(data.length / 900));
+    ctx.save(); ctx.setLineDash(dash||[]);
+    ctx.beginPath();
+    ctx.moveTo(xfn(data[0]), yfn(data[0]));
+    for (let i=stride; i<data.length; i+=stride) { const d=data[i]; ctx.lineTo(xfn(d), yfn(d)); }
+    const dl = data[data.length-1]; ctx.lineTo(xfn(dl), yfn(dl));
+    if((!dash||!dash.length) && data.length<=1500){ ctx.strokeStyle=color; ctx.globalAlpha=0.22; ctx.lineWidth=width*2.8; ctx.stroke(); ctx.globalAlpha=1; }
+    ctx.strokeStyle=color; ctx.lineWidth=width; ctx.stroke();
+    ctx.restore(); }
+  function drawArrow(x1,y1,x2,y2,color,width,dashed) { ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=width; ctx.lineCap='round'; if(width>=5){ ctx.shadowColor=color; ctx.shadowBlur=10; } if(dashed)ctx.setLineDash([8,7]); line(x1,y1,x2,y2); ctx.setLineDash([]); const a=Math.atan2(y2-y1,x2-x1); drawArrowHead(x2,y2,a,color,width); ctx.restore(); }
+  function drawArrowHead(x,y,a,color,width) { ctx.save(); ctx.fillStyle=color; const s=5+width*2; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-s*Math.cos(a-0.45), y-s*Math.sin(a-0.45)); ctx.lineTo(x-s*Math.cos(a+0.45), y-s*Math.sin(a+0.45)); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  function line(x1,y1,x2,y2) { ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+  function roundRect(x,y,w,h,r,fill,stroke) { const rr=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); if(fill)ctx.fill(); if(stroke)ctx.stroke(); }
+  function wrapText(text,x,y,maxWidth,lineHeight,maxLines) { const words=String(text).split(''); let lineText='', lines=0; for (const ch of words) { const test=lineText+ch; if(ctx.measureText(test).width>maxWidth && lineText) { ctx.fillText(lineText,x,y); lineText=ch; y+=lineHeight; lines++; if(maxLines && lines>=maxLines-1) break; } else lineText=test; } if(lineText)ctx.fillText(lineText,x,y); }
+  function fitText(text,x,y,maxWidth) { text=String(text); if(ctx.measureText(text).width<=maxWidth) { ctx.fillText(text,x,y); return; } while(text.length>1 && ctx.measureText(text+'…').width>maxWidth) text=text.slice(0,-1); ctx.fillText(text+'…',x,y); }
+  function clamp(x,lo,hi){ return Math.max(lo,Math.min(hi,x)); }
+  function mod(a,n){ return ((a%n)+n)%n; }
+  function signNonzero(x,fallback=1){ return Math.abs(x)<1e-12 ? fallback : Math.sign(x); }
+  function wrapPi(a){ a=(a+Math.PI)%TAU; if(a<0)a+=TAU; return a-Math.PI; }
+  function angle01(a){ a=a%TAU; if(a<0)a+=TAU; return a; }
+  function deg(a){ return a*180/Math.PI; }
+  function smoothstep(edge0,edge1,x){ const t=clamp((x-edge0)/(edge1-edge0),0,1); return t*t*(3-2*t); }
+
+  function updateLabels(p,m) {
+    D('modeLabel').textContent = {micro:'Micro', half:'Half', full:'Full', wave:'Wave'}[p.driveMode];
+    D('driverLabel').textContent = {current:'current', ideal:'ideal', fast:'fast', mixed:'mixed', slow:'slow', voltage:'voltage'}[p.driverMode];
+    D('timeScaleText').textContent = `${p.timeScale.toFixed(2)}× slow-mo`;
+    D('ppsText').textContent = `${p.pps.toFixed(1)} fs/s ≈ ${(p.pps*60/(4*p.cycles)).toFixed(1)} rpm`;
+    D('accelText').textContent = `${p.accel.toFixed(0)}`;
+    D('responseText').textContent = `${p.responseTime.toFixed(2)}`;
+    D('sweepText').textContent = `${p.sweep>=1?p.sweep.toFixed(0):p.sweep>=0.1?p.sweep.toFixed(1):p.sweep.toFixed(2)} s`;
+    D('rollText').textContent = p.rollMode==='roll' ? 'roll' : 'accum';
+    D('vGainText').textContent = `×${p.vGain}`;
+    D('tRangeText').textContent = p.tRange==='auto' ? 'auto' : `${p.tRange} N·m`;
+    D('zoomText').textContent = p.rotorZoom==='zoom' ? '拡大' : '全体';
+    const pairs = [
+      ['vbusText',p.vbus.toFixed(1)], ['imaxText',p.imax.toFixed(2)], ['rText',p.resistance.toFixed(2)], ['lText',(p.inductance*1000).toFixed(2)], ['ktText',p.kt.toFixed(3)], ['dropText',p.drop.toFixed(2)],
+      ['jText',p.inertia.toExponential(2)], ['dampingText',p.damping.toExponential(2)], ['loadText',p.load.toFixed(3)], ['detentText',p.detent.toFixed(3)], ['cyclesText',`${p.cycles.toFixed(0)} / ${(360/(4*p.cycles)).toFixed(3)}°`], ['microText',`1/${p.microsteps.toFixed(0)}`]
+    ];
+    for (const [id,text] of pairs) { const el=D(id); if(el) el.textContent=text; }
+  }
+
+  controls.preset.addEventListener('change', e => applyPreset(e.target.value));
+  D('play').addEventListener('click', () => { state.playing = !state.playing; state.responseLeft = 0; D('play').textContent = state.playing ? '一時停止' : '連続再生'; state.lastWall = performance.now(); });
+  D('reset').addEventListener('click', () => resetState(true));
+  D('reverse').addEventListener('click', () => { state.direction *= -1; state.lastStepLabel = state.direction > 0 ? '回転方向: 正転' : '回転方向: 逆転'; });
+  D('settle').addEventListener('click', () => { state.playing = false; D('play').textContent = '連続再生'; state.responseLeft = params().responseTime; state.lastWall = performance.now(); });
+  D('stepCommand').addEventListener('click', () => { const p=params(); state.playing=false; D('play').textContent='連続再生'; issueCommandSteps(state.direction, p, '1 command step'); state.responseLeft = p.responseTime; state.lastWall = performance.now(); });
+  D('stepFull').addEventListener('click', () => { const p=params(); state.playing=false; D('play').textContent='連続再生'; issueCommandSteps(state.direction * commandStepsPerFullStep(p), p, '1 full-step'); state.responseLeft = p.responseTime; state.lastWall = performance.now(); });
+  for (const key of Object.keys(controls)) {
+    if (key !== 'preset') controls[key].addEventListener('change', () => { state.iaRefPrev = state.ia; state.ibRefPrev = state.ib; });
+  }
+  for (const ev of ['input','change','click']) document.addEventListener(ev, () => { state.needsRedraw = true; }, true);
+  function canvasPos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { cx: (e.clientX - r.left) * canvas.width / r.width, cy: (e.clientY - r.top) * canvas.height / r.height };
+  }
+  function overToggle(e) {
+    if (!waveToggleRect) return false;
+    const {cx, cy} = canvasPos(e);
+    return cx>=waveToggleRect.x && cx<=waveToggleRect.x+waveToggleRect.w && cy>=waveToggleRect.y && cy<=waveToggleRect.y+waveToggleRect.h;
+  }
+  canvas.addEventListener('click', e => { if (overToggle(e)) { state.waveLayout = state.waveLayout==='side' ? 'stack' : 'side'; state.needsRedraw = true; } });
+  canvas.addEventListener('mousemove', e => { canvas.style.cursor = overToggle(e) ? 'pointer' : 'default'; });
+  applyPreset('stable');
+  requestAnimationFrame((now)=>{ state.lastWall = now; requestAnimationFrame(tick); });
+})();
+</script>
+</body>
+</html>
